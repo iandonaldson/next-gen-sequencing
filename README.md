@@ -5,7 +5,7 @@
 installing ngs programs (bwa, picard tools, gatk) and retrieving example data sets using aspera
 
 
-##refereence.sh
+##reference.sh
 
 retrieving, installing and referencing a reference genome
 
