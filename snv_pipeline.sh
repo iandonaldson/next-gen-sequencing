@@ -212,31 +212,69 @@ java -Xmx2g -jar $GATK \
 -o A.recal \
 -I A.$SEQ_NAME.sort.dedup.mate.realign.bam 1>recal.log 2>recal.loge
 END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
+#1476 s = 24 min
 
 
-java -Xmx4g -jar $GATK -R $DATA/hg19.chr1/chr1.fa \
+java -jar $GATK -T PrintReads -h 
+#http://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
+# - the recalibration file generated in the last step is passed to the PrintReads tool using the BSQR command line parameter
+
+START=$(date +%s.%N)
+java -Xmx2g -jar $GATK \
+-R $REF_GENOME \
 -T PrintReads \
 -BQSR A.recal \
 -o A.$SEQ_NAME.sort.dedup.mate.realign.recal.bam \
--I A.$SEQ_NAME.sort.dedup.mate.realign.bam
+-I A.$SEQ_NAME.sort.dedup.mate.realign.bam 1>rewrite.log 2>rewrite.loge
+END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
+#1880 s = 31 min
 
-#7. call variants with GATK's UnifiedGenotyper (faster, lots of raw calls, must run filter after)
-time java -Xmx4g -jar $APP/gatk/3.1-1/GenomeAnalysisTK.jar -R $DATA/hg19.chr1/chr1.fa \
+
+
+###
+# call variants with GATK's UnifiedGenotyper 
+# - This tool has been deprecated in favor of HaplotypeCaller, a much more sophisticated variant caller that produces much better calls, especially on indels, and includes features that allow it to scale to much larger cohort sizes.
+# - The caller can be very aggressive in calling variants in order to be very sensitive, so the raw output will contain many false positives. We use extensive post-calling filters to eliminate most of these FPs. See the documentation on filtering (especially by Variant Quality Score Recalibration) for more details.
+
+# -D (--dbsnp file)
+# -glm (--genotype-likelihoods-model).  Genotype likelihoods calculation model to employ -- SNP is the default option, while INDEL is also available for calling indels and BOTH is available for calling both together
+# -metrics produces a metrics file - see GATK global params
+# -stand_call_conf - The minimum phred-scaled confidence threshold at which variants should be called.
+# -stand_emit_conf - The minimum phred-scaled confidence threshold at which variants should be emitted (and filtered with LowQual if less than the calling threshold)
+# -o output file name
+# -I input file name
+
+java -jar $GATK -T UnifiedGenotyper -h 
+
+START=$(date +%s.%N)
+java -Xmx2g -jar $GATK \
+-R $REF_GENOME \
 -T UnifiedGenotyper \
 -glm BOTH \
--D $DATA/dbsnp_138.hg19.vcf \
+-D $KNOWN_SNPS \
 -metrics A.snps.metrics \
--stand_call_conf 50.0 -stand_emit_conf 10.0 \
+-stand_call_conf 50.0 \
+-stand_emit_conf 10.0 \
 -o A.ug.vcf \
--I A.$SEQ_NAME.sort.dedup.mate.relaign.recal.bam
+-I A.$SEQ_NAME.sort.dedup.mate.realign.recal.bam 1>ugcaller.log 2>ugcaller.loge
+END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
+#809 s = 13 min
 
-#8. call variants with GATK's HaplotypeCaller (2x slower than UG, much less accurate calls)
-time java -Xmx4g -jar $APP/gatk/3.1-1/GenomeAnalysisTK.jar -R $DATA/hg19.chr1/chr1.fa \
+###
+#call variants with GATK's HaplotypeCaller 
+# see notes on args for UnifiedGenotyper caller above
+java -jar $GATK -T HaplotypeCaller -h
+START=$(date +%s.%N)
+java -Xmx2g -jar $GATK \
+-R $REF_GENOME \
 -T HaplotypeCaller \
---dbsnp $DATA/dbsnp_138.hg19.vcf \
--stand_call_conf 50.0 -stand_emit_conf 10.0 \
+--dbsnp $KNOWN_SNPS \
+-stand_call_conf 50.0 \
+-stand_emit_conf 10.0 \
 -o A.hc.vcf \
--I A.$SEQ_NAME.sort.dedup.mate.relaign.recal.bam
+-I A.$SEQ_NAME.sort.dedup.mate.realign.recal.bam 1>hcaller.log 2>hcaller.loge
+END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
+#944 s = 15 min
 
 exit 0;
 
@@ -244,7 +282,7 @@ exit 0;
 #End of pipeline
 ################################
 
-#An easier way to document scripts using heredocuments
+#An easier way to document scripts using here documents
 
 
 #!/bin/sh
