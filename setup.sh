@@ -6,8 +6,8 @@
 #https://www.broadinstitute.org/gatk/guide/topic?name=tutorials
 
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 
 ###
 # bwa - Burrows-Wheeler transformation aligner
@@ -25,7 +25,7 @@ make
 #there is no make target for install so
 sudo mkdir --parents --mode 755 /usr/local/bin /usr/local/share/man/man1
 sudo install --preserve-timestamps bwa  /usr/local/bin
-sudo install --preserve-timestamps -mode 644 bwa.1 /usr/local/share/man/man1
+sudo install --preserve-timestamps --mode 644 bwa.1 /usr/local/share/man/man1
 bwa
 man bwa
 cd ..
@@ -38,8 +38,8 @@ cd ..
 #code: https://github.com/samtools/samtools/archive/develop.zip
 #download site: http://sourceforge.net/projects/samtools/files/samtools/1.2/
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 
 wget http://sourceforge.net/projects/samtools/files/samtools/1.2/samtools-1.2.tar.bz2
 wget http://sourceforge.net/projects/samtools/files/samtools/1.2/bcftools-1.2.tar.bz2
@@ -60,6 +60,25 @@ man samtools
 cd ..
 
 ###
+# tabix - destributed on samtools site
+# http://sourceforge.net/projects/samtools/files/tabix/
+
+cd ~
+mkdir -parents Downloads
+cd Downloads
+wget http://sourceforge.net/projects/samtools/files/tabix/tabix-0.2.6.tar.bz2
+tar --bzip2 -xvf tabix-0.2.6.tar.bz2
+cd tabix-0.2.6
+make
+#no target for install so...
+sudo install --preserve-timestamps tabix  /usr/local/bin
+sudo install --preserve-timestamps bgzip  /usr/local/bin
+sudo install --preserve-timestamps --mode 644 tabix.1 /usr/local/share/man/man1
+tabix
+man tabix #includes bgzip man
+
+
+###
 # picard
 #
 #main site: http://broadinstitute.github.io/picard/
@@ -70,8 +89,8 @@ cd ..
 #picard can generate a large number of metrics described here:
 #http://broadinstitute.github.io/picard/picard-metric-definitions.html
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 
 #install pre-compiled picard tools
 wget https://github.com/broadinstitute/picard/releases/download/1.131/picard-tools-1.131.zip
@@ -107,8 +126,8 @@ sudo yum install ant
 
 #build the samtools htsjdk.jar (high-throughput sequencing java development kit)
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 
 wget https://github.com/samtools/htsjdk/tarball/master
 tar -xvf master
@@ -120,8 +139,8 @@ cd ..
 #build picard from source
 #get most recent release archive here: https://github.com/broadinstitute/picard/releases/latest
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 
 wget https://github.com/broadinstitute/picard/archive/1.131.zip
 #mv the htsjdk built above to this directory (required for build of picard tools)
@@ -135,8 +154,8 @@ cd ..
 # GATK
 #
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 # signup then download from here
 # https://www.broadinstitute.org/gatk/download/
 
@@ -144,7 +163,7 @@ cd download
 cd ~
 mkdir -p gatk
 cd gatk
-mv ../downloads/GenomeAnalysisTK-3.4-0.tar.bz2 .
+mv ../Downloads/GenomeAnalysisTK-3.4-0.tar.bz2 .
 tar --bzip2 -xvf GenomeAnalysisTK-3.4-0.tar.bz2
 sudo cp GenomeAnalysisTK.jar /usr/local/bin/.
 #make it a little easier to access
@@ -159,15 +178,15 @@ java -jar $GATK -h
 # IGV and igvtools
 #
 cd ~
-mkdir -parents download
-cd download
+mkdir -parents Downloads
+cd Downloads
 #download from https://www.broadinstitute.org/software/igv/download
 
 cd ~
 mkdir -p igv
 
-mv downloads/IGV_2.3.52.zip igv/.
-mv downloads/igvtools_2.3.52.zip igv/.
+mv Downloads/IGV_2.3.52.zip igv/.
+mv Downloads/igvtools_2.3.52.zip igv/.
 
 unzip igv/IGV_2.3.52.zip
 unzip igv/igvtools_2.3.52.zip
@@ -308,6 +327,175 @@ echo $DIFF
 
 
 ###
+# Download VCF data for 1000G project
+
+#VCF data is distributed per chromosome for all subjects or for whole genome sequence (wgs) as a summary
+#ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
+#	ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz      #209 MB
+#	ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz.tbi
+#       ...
+#	ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz 		#2GB
+#	ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz.tbi
+#
+#lots of additional data (including functional annotation) can be found here
+#ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/
+
+#example use of 1000G aspera site - see http://www.1000genomes.org/data#DataAccess
+#ascp -i bin/aspera/etc/asperaweb_id_dsa.putty -Tr -Q -l 100M -L- fasp-g1k@fasp.1000genomes.ebi.ac.uk:vol1/ftp/release/20100804/ALL.2of4intersection.20100804.genotypes.vcf.gz ./
+
+cd /storage/1000G
+
+#ascp does not appear to support globbing so multiple files are downloaded using a for-in loop 
+START=$(date +%s.%N)
+for FILENAME in \
+ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz \
+ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz.tbi \
+ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz.tbi \
+ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz; do
+ascp -T -l 300m -k2 \
+-L /storage/1000G \
+--overwrite=always \
+-i /home/ian/.aspera/connect/etc/asperaweb_id_dsa.openssh \
+fasp-g1k@fasp.sra.ebi.ac.uk:/vol1/ftp/release/20130502/$FILENAME .;
+done
+END=$(date +%s.%N)
+DIFF=$(echo "$END - $START" | bc)
+echo $DIFF
+#347 s = 6 min
+
+###
+#a short introduction to working with large files
+FILENAME=ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz
+#take a look
+zless $FILENAME
+#how many lines
+zcat $FILENAME | wc -l # 84 M
+#uncompressed size ; i.e. how many characters
+zcat $FILENAME | wc -c # 13 GB
+#extract a line
+# do this first to avoid surprises - returns just 1 record - cf time for tabix below
+zgrep rs367896724 $FILENAME | wc -l 
+time zgrep rs367896724 $FILENAME
+#real	1m1.647s  <=="wall time"
+#user	1m5.360s  <==amount of CPU time spent in user-mode code (outside the kernel)
+#sys	0m3.415s  <==amount of CPU time spent in kernel/supervisor-mode code (inside the kernel)
+#u+s=CPU time from all threads and can exceed real time
+#r time includes time waiting for other processes to complete such as read/wrote that will not be included in u+s
+
+#tabix - depends on the presence of a precomputed index file called FILENAME.tbi 
+tabix $FILENAME 1:10,000,000-20,000,000 > tmp
+tabix $FILENAME 1:10000000-20000000 > tmp
+time tabix $FILENAME 1:10000000-20000000 > tmp
+#real	0m0.289s
+#user	0m0.264s
+#sys	0m0.025s
+wc -l tmp 
+#294767 - enough said
+
+
+#looking at individual data
+FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+zless $FILENAME
+
+tabix $FILENAME 22:16050075-16050075
+#the index file either does not exist or is older than the vcf file. Please reindex.
+#this is because the tbi file was downloaded first - 
+#you could do
+stat $FILENAME.tbi
+touch -m $FILENAME.tbi
+#then the above tabix command will work
+#but lets re-index anyway
+mv $FILENAME.tbi $FILENAME.tbi.bk
+time tabix -p vcf -s 1 -b 2 -e 2 -S 0 -c '#' $FILENAME
+#30 s
+
+tabix $FILENAME 22:16050075-16050075 > tmp; wc -l
+#1 line
+#how many columns?
+tabix $FILENAME 22:16050075-16050075 | t2r > tmp2; wc -l tmp2
+#2516
+#how many individuals have at least 1 allele?
+grep -c '0|1' tmp2
+grep -n '0|1' tmp2
+#only one individual in column 1447
+RESULT=$(grep -n '0|1' tmp2)
+
+#tabix works on remote files !!
+tabix -h ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20100804/ALL.2of4intersection.20100804.genotypes.vcf.gz 2:39967768-39967768
+#in this case, the corresponding .tbi index file will be downloaded to the local directory and tabix will only return the portion of the file corresponding to query
+
+#but tabix is limited to extracting parts of a vcf file (or other chromosome:location based file)
+#by location - consider if you have to extract by some other feature
+#
+#example - try to pick out indels from a vcf file
+FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+FILENAME=ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz
+zgrep -v "^#" $FILENAME | awk '{if(length($4) != length($5)) {print $0}}' | less
+#immediate results from the top of the file...but how long does it take to complete entire file?
+time zgrep -v "^#" $FILENAME | awk '{if(length($4) != length($5)) {print $0}}' > tmp
+#real	1m1.712s - not bad
+#subsections of vcf files based on individual id, population etc. can be retrieved using vcftools (just like how samtools can help retrieve subsections of bam or sam files).
+#1000G provides a web interface to these tools called  Data Slicer Tool on their tool page (http://browser.1000genomes.org/tools.html) but its probably better to install and learn these tools yourself
+
+FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+
+#generate 
+vcftools --gzvcf $FILENAME
+#reports number of individuals and sites
+
+#subset just the indels like above
+time vcftools --gzvcf $FILENAME --keep-only-indels --recode --recode-INFO-all --out INDELs_only
+#1m24.626s - almost as good as 'grep and awk' method above
+
+#snp filter for rs587593704 (can also exclude or specify multiple in file)
+FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+time vcftools --gzvcf $FILENAME --snp rs587593704 --recode --recode-INFO-all --out rs557400692_only
+#28 s - seems a little slow
+
+#individual filter for HG00118 (can also exclude or specify multiple in file)
+FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+time vcftools --gzvcf $FILENAME --indv HG00118 --recode --recode-INFO-all --out rs557400692_only
+#8 min
+
+#select a random number of individuals up to some maimum 
+
+#output as a matrix using --012
+mkdir tmp_dir
+time vcftools --gzvcf $FILENAME --012 --temp tmp_dir --out matrix
+###does not work --- 
+# Writing 012 matrix files ... Error:  Could not open temporary file.
+ulimit -n 3000 #to allow many multiple files
+vcftools --gzvcf $FILENAME --012 --temp tmp_dir --out matrix
+#now it works
+#568 sec
+
+###
+# vcftools
+# http://vcftools.sourceforge.net/
+# http://www.1000genomes.org/faq/how-do-i-get-sub-section-vcf-file
+
+cd ~
+mkdir -parents Downloads
+cd Downloads
+wget http://sourceforge.net/projects/vcftools/files/vcftools_0.1.12b.tar.gz
+gunzip vcftools_0.1.12b.tar.gz
+tar -xvf vcftools_0.1.12b.tar
+cd tar vcftools_0.1.12b
+make
+#there is no make target for install so
+sudo mkdir --parents --mode 755 /usr/local/bin /usr/local/share/man/man1
+sudo install --preserve-timestamps bin/vcf*  /usr/local/bin
+sudo install --preserve-timestamps bin/fill*  /usr/local/bin
+sudo install --preserve-timestamps perl/Vcf.pm  /usr/lib64/perl5
+sudo install --preserve-timestamps perl/VcfStats.pm  /usr/lib64/perl5
+sudo install --preserve-timestamps perl/FaSlice.pm  /usr/lib64/perl5
+sudo install --preserve-timestamps --mode 644 bin/man1/vcftools.1 /usr/local/share/man/man1
+man vcftools
+#or http://vcftools.sourceforge.net/docs.html
+
+
+
+###
 # pIRS (profile based Illumina pair-end Reads Simulator
 #
 #developed for de novo data simulation. It uses empirical distribution to reproduce Illumina pair-end reads with #real distribution of substitution sequencing errors, quality values and GC%-depth bias.
@@ -321,7 +509,7 @@ unzip master.zip
 cd pirs-master
 #may have to install several libs (BOTH static and devel versions) - see the INSTALL readme.
 make
-
+q
 #put it in the same place as all other execs
 sudo cp src/pirs/pirs /usr/local/bin/.
 #check it - will show usage info
