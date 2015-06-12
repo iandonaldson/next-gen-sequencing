@@ -233,6 +233,7 @@ END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
 
 ###
 # call variants with GATK's UnifiedGenotyper 
+# DO NOT USE THIS - SEE HaplotypeCaller below instead
 # - This tool has been deprecated in favor of HaplotypeCaller, a much more sophisticated variant caller that produces much better calls, especially on indels, and includes features that allow it to scale to much larger cohort sizes.
 # - The caller can be very aggressive in calling variants in order to be very sensitive, so the raw output will contain many false positives. We use extensive post-calling filters to eliminate most of these FPs. See the documentation on filtering (especially by Variant Quality Score Recalibration) for more details.
 
@@ -261,7 +262,7 @@ END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
 #809 s = 13 min
 
 ###
-#call variants with GATK's HaplotypeCaller 
+# call variants with GATK's HaplotypeCaller 
 # see notes on args for UnifiedGenotyper caller above
 java -jar $GATK -T HaplotypeCaller -h
 START=$(date +%s.%N)
@@ -276,10 +277,75 @@ java -Xmx2g -jar $GATK \
 END=$(date +%s.%N); DIFF=$(echo "$END - $START" | bc); echo $DIFF
 #944 s = 15 min
 
+
+
 exit 0;
 
+#End of pipeline - but ....see notes below for possible next steps
+###################################################################
 
-#End of pipeline
+###
+# if you were sequencing a cohort, you would run the haplotype caller in ERC mode
+# then do joint genotyping by running GenotypeGVCFs on all of the gVCFs produced by the 
+# halpotype caller
+# finally you would do Variant Quality Score Recalibration
+# see https://www.broadinstitute.org/gatk/guide/best-practices?bpm=DNAseq
+# see https://www.broadinstitute.org/gatk/guide/topic?name=methods HC Steps 1-4
+#
+# -ERC (--emitReferenceConfidence) Mode for emitting reference confidence scores
+# --variant_index_type ?
+# --variant_index_parameter ?
+
+java -jar $GATK \
+-T HaplotypeCaller \
+-R reference.fasta
+-I sample1.bam \
+--emitRefConfidence GVCF \
+--variant_index_type LINEAR \
+--variant_index_parameter 128000
+[--dbsnp dbSNP.vcf] \
+[-L targets.interval_list] \
+-o output.raw.snps.indels.g.vcf
+
+
+###
+# analysis-ready variants next go to phasing, variant annotation, and evaluation
+
+
+###
+# the GATK ReadBackedPhasing tool can be used to determine physical phasing
+
+
+###
+# the GATK SelectVariants tool can be used to select variants from a VCF file
+# see https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_variantutils_SelectVariants.php
+# see JEXL expressions https://www.broadinstitute.org/gatk/guide/article?id=1255
+
+
+###
+# the GATK VariantEval tool can compare two VCF call sets 
+
+###
+# JointSNVMix can be used to compare two genomes (say somatic and germline) to help identify 
+# real somatic mutations - see http://compbio.bccrc.ca/software
+
+###
+# MutationSeq is a machine-trained approach to filtering false-positive mutation calls
+# see http://compbio.bccrc.ca/software
+
+###
+# IGV - integrated genome viewer can and should be used to review SNVs by loading both bam and vcf files
+
+###
+# Assessing the biological effect of SNVs
+#
+# MutationAssessor -  http://mutationassessor.org 
+#
+# VEP - Variant Effect Predictor - http://compbio.bccrc.ca/software
+#
+# GATK - Variant Evaluation and Manipulation Tools - https://www.broadinstitute.org/gatk/guide/tooldocs
+
+
 ################################
 
 #An easier way to document scripts using here documents
