@@ -99,7 +99,7 @@ cd picard-tools-1.131
 java -jar picard.jar #will display usage info
 #put it in the same place as all other execs
 sudo cp *.jar /usr/local/bin/.
-java -jar /usr/local/bin/picard.jar #will displau usage info
+java -jar /usr/local/bin/picard.jar #will display usage info
 cd ..
 #make it a little easier to access
 echo "export PICARD='/usr/local/bin/picard.jar'" >> ~/.bashrc
@@ -457,7 +457,7 @@ FILENAME=ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf
 time vcftools --gzvcf $FILENAME --indv HG00118 --recode --recode-INFO-all --out rs557400692_only
 #8 min
 
-#select a random number of individuals up to some maimum 
+#select a random number of individuals up to some maximum 
 
 #output as a matrix using --012
 mkdir tmp_dir
@@ -521,6 +521,59 @@ mv pirs ~/ngs/resources/.
 echo "export PIRS=~/ngs/resources/pirs" >> ~/.bashrc
 exec bash
 echo $PIRS
+
+
+###
+# Annotation tools
+###
+
+###
+# ClinVar
+# where the rubber hits the road
+# spend some quality time here: ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/README.txt
+
+cd ~/Downloads
+wget ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz
+wget ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz.tbi
+# zless clinvar.vcf.gz
+mkdir -p ~/ngs/resources/clinvar
+cp clinvar.vcf.gz ~/ngs/resources/clinvar/.
+gunzip ~/ngs/resources/clinvar/clinvar.vcf.gz
+mv clinvar.vcf.gz ~/ngs/resources/clinvar/.
+mv clinvar.vcf.gz.tbi ~/ngs/resources/clinvar/.
+echo "export CLINVARDIR=~/ngs/resources/clinvar" >> ~/.bashrc
+
+
+
+###
+# SnpEff
+#
+# http://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip
+
+cd ~/Downloads
+wget http://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip
+unzip snpEff_latest_core.zip
+cd snpEff
+#get the protocols example data - see http://snpeff.sourceforge.net/protocol.html
+wget http://sourceforge.net/projects/snpeff/files/protocols.zip
+unzip protocols.zip
+rm protocols.zip
+cd ..
+
+#i am going to install snpEff in the ngs/resources directory
+#snpEff automatically downloads required databases into a subdirectory of snpEff called data
+
+mv snpEff ~/ngs/resources/.
+echo "export SNPEFF=~/ngs/resources/snpEff/snpEff.jar" >> ~/.bashrc
+echo "export SNPSIFT=~/ngs/resources/snpEff/SnpSift.jar" >> ~/.bashrc
+echo "export SNPEFFDIR=~/ngs/resources/snpEff" >> ~/.bashrc
+exec bash
+echo $SNPEFF
+echo $SNPSIFT
+echo $SNPEFFDIR
+
+# see example usage in annotation.sh
+
 
 #Sources
 # Google na12878_r1.fq.gz
