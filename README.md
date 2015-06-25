@@ -7,7 +7,7 @@ installing ngs programs (bwa, picard tools, gatk) and retrieving example data se
 
 ##reference.sh
 
-retrieving, installing and referencing a reference genome
+retrieving, installing and indexing a reference genome
 
 ## snv_pipeline_demo
 
