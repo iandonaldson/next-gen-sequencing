@@ -61,21 +61,24 @@ cd ..
 
 ###
 # tabix - destributed on samtools site
-# http://sourceforge.net/projects/samtools/files/tabix/
+# http://www.htslib.org/download/
+# now distributed as part of htslib - includes tzbix, bgzip and htsfile
 
-cd ~
-mkdir -parents Downloads
-cd Downloads
-wget http://sourceforge.net/projects/samtools/files/tabix/tabix-0.2.6.tar.bz2
-tar --bzip2 -xvf tabix-0.2.6.tar.bz2
-cd tabix-0.2.6
-make
-#no target for install so...
-sudo install --preserve-timestamps tabix  /usr/local/bin
-sudo install --preserve-timestamps bgzip  /usr/local/bin
-sudo install --preserve-timestamps --mode 644 tabix.1 /usr/local/share/man/man1
-tabix
-man tabix #includes bgzip man
+# historical only - see http://www.htslib.org/download/ above instead
+# http://sourceforge.net/projects/samtools/files/tabix/
+# cd ~
+# mkdir -parents Downloads
+# cd Downloads
+# wget http://sourceforge.net/projects/samtools/files/tabix/tabix-0.2.6.tar.bz2
+# tar --bzip2 -xvf tabix-0.2.6.tar.bz2
+# cd tabix-0.2.6
+# make
+# no target for install so...
+# sudo install --preserve-timestamps tabix  /usr/local/bin
+# sudo install --preserve-timestamps bgzip  /usr/local/bin
+# sudo install --preserve-timestamps --mode 644 tabix.1 /usr/local/share/man/man1
+# tabix
+# man tabix #includes bgzip man
 
 
 ###
@@ -93,7 +96,7 @@ mkdir -parents Downloads
 cd Downloads
 
 #install pre-compiled picard tools
-wget https://github.com/broadinstitute/picard/releases/download/1.131/picard-tools-1.131.zip
+wget https://github.com/broadinstitute/picard/releases/download/1.131/picard-tabixtools-1.131.zip
 unzip picard-tools-1.131.zip
 cd picard-tools-1.131
 java -jar picard.jar #will display usage info
