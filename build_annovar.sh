@@ -2,7 +2,7 @@
 
 #build_annovar.sh
 
-HUMANDB="/data/home/wgw057/scratch/annovardb/hg19"
+HUMANDB="/data/home/wgw057/scratch/annovardb/human"
 
 mkdir -p ${HUMANDB}
 
