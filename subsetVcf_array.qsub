@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# vcfSubset_array.qsub
+#
+# array run version of vcftools call that subsets 1000G data for each chromosome
+# see http://
+# author: Ian Donaldson - i.donaldson@qmul.ac.uk
+#
+# usage
+# qsub -o logs -e logs -t 1-n subsetVcf_array.qsub
+# where
+# N is th number of sample names
+# -o and -e specify paths to an exsting directory where output and error logs from each job will be posted
+# -t is the number of tasks (number of samples whose bam files should be merged)
+#
+# set these parameters
+PROJECT_DIR="_some_project_directory_"
+INPUT_DIR="/data/home/wgw057/scratch/1000G"      ### 1000G data
+SAMPLE_NAMES=${PROJECT_DIR}/mandate/mandate.chrs ### file listing chromosomes - see n above
+OUTPUT_DIR=${PROJECT_DIR}/results_vcfsubset
+BED=${PROJECT_DIR}/xxxx.bed
+KEEP=${PROJECT_DIR}/xxxxfile_with_sample_ids
+
+
+###
+# no changes required beyond this point
+###
+
+
+
+# job setup
+#$ -m bes
+#$ -M i.donaldson@qmul.ac.uk
+#$ -cwd
+#$ -V    
+##$ -pe smp 4
+#$ -l h_rt=24:0:0
+##$ -l h_vmem=16G   
+#$ -N vcfSubset
+
+#retrieve the variables for the job from the mandate file
+THIS_SAMPLE=$(sed -n -e "$SGE_TASK_ID p" ${SAMPLE_NAMES})
+# ALL.chr21.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+INPUT_FILE=${INPUT_DIR}/ALL.chr${THIS_SAMPLE}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+if [ ! -e ${INPUT_FILE} ]; then
+    echo "${INPUT_FILE} not found. quitting";
+    exit;
+fi
+
+#all output files will be written to a single sub-directory
+if [ ! -e ${OUTPUT_DIR} ]; then mkdir -p ${OUTPUT_DIR}; fi
+
+#log what will be done for this specfic task
+echo -e "starting app for ${THIS_SAMPLE}. \
+Number of jobs is ${NUM_JOBS} and task id is ${SGE_TASK_ID}" | tee -a ${OUTPUT_DIR}/log
+
+##################
+#make a subset of vcf file - both a sample  subset (specified by ids in --keep file) and
+#a subset of snvs specified by regions in --bed file)
+
+module load vcftools
+OUT="${OUTPUT_DIR}/${THIS_SAMPLE}.allEur1000Gcicus"
+
+
+vcftools --gzvcf ${INPUT_FILE} \
+--bed ${BED} \
+--keep ${KEEP} \
+--out ${OUT} \
+--recode
+#new files appear called out.recode.vcf and out.recode.log
+
+
+module load htslib/1.3.1
+#compress with bgzip and index with tabix
+bgzip ${OUT}.recode.vcf
+# new.recode.vcf becomes new.recode.vcf.gz
+tabix -p vcf ${OUT}.recode.vcf.gz
+#new file called new.recode.vcf.gz.tbi will appear
+
+#################
+
+#log what happened
+echo "exited with code $? for ${THIS_SAMPLE}" | tee -a ${OUTPUT_DIR}/log
+
+exit
+
+####
+
+
