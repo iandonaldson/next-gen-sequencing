@@ -5,7 +5,7 @@
 
 # usage
 # modify the parameters section below and then ./bismark_genome_preparation.sh
-
+# see important notes below on prepapring genomes for aligning targetted sequencing
 
 BISMARK_PATH=/data/home/wgw057/tools/bismark/bismark_v0.16.3
 GENOME_DIR=/data/WHRI-GenomeCentre/shares/Projects/NGS_Projects/DNA_Sequencing/Elliot_Evan/GC-EE-5295/Analysis/Ian_Analysis/Elliot_Genome
@@ -26,6 +26,10 @@ ${BISMARK_PATH}/bismark --help
 
 Input to the application is a directory path 'GENOME_DIR' which is expected to contain one or more fasta sequence files
 with the .fa or .fasta extension. 
+
+IMPORTANT - if you are constructing a fasta file composed of targetted regions that were sequenced, include a few(?) bases 5' and 3' to 
+the targetted sequences - failing to do this may prevent bismark from making alignments close to the ends of targetted regions - not sure why - possible bug
+
 
 the default index will be made using (and compatible with) bowtie2 - if you want to use bowtie for the alignment, a separate index must be made 
 specifying --bowtie 
