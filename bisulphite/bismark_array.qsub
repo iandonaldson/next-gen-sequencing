@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# bismark_array.qsub
+#
+# array run version of bismark
+# see http://www.bioinformatics.babraham.ac.uk/projects/bismark/
+# author: Ian Donaldson - i.donaldson@qmul.ac.uk
+#
+# usage
+# qsub -o logs -e logs -t 1-N bismark_array2.qsub
+# where
+# N is th number of sample names
+# -o and -e specify paths to an exsting directory where output and error logs from each job will be posted
+# -t is the number of tasks (number of samples whose bam files should be merged)
+#
+# set these parameters
+PROJECT_DIR=/data/WHRI-GenomeCentre/idonaldson/bisulfite_dev
+INPUT_DIR=${PROJECT_DIR}/results_trimgalore
+SAMPLE_NAMES=${PROJECT_DIR}/mandate/sample_name_rep
+OUTPUT_DIR=${PROJECT_DIR}/results_bismark_consol
+
+#if not using a centrally installed bismark, specify the path here
+BISMARK_PATH=/data/home/wgw057/tools/bismark/bismark_v0.16.3
+GENOME_DIR=/data/WHRI-GenomeCentre/shares/Projects/NGS_Projects/DNA_Sequencing/Elliot_Evan/GC-EE-5295/Analysis/Ian_Analysis/Elliot_Genome
+
+#set to 1 for deduplication
+#this step is recommended unless you are doing  RRBS or other target enrichment methods where 
+#higher coverage is either desired or expected
+#see http://www.bioinformatics.babraham.ac.uk/training/Methylation_Course/BS-Seq%20theory%20and%20QC%20lecture.pdf
+###
+#note - this feature has not been tested extensively - run a sample first!
+DEDUP=0
+
+#see notes below on file naming conventions
+#this is the first script developed for bismark and changes may be required to generalize the 
+#handling of names
+#sample_names file has names of the form
+#10B-rep1
+#12 files will be located for each corresponding to
+#6 chromosomal targets * 2 reads for each sample-replicate combination
+
+
+###
+# no changes required beyond this point
+###
+
+
+# job setup
+##$ -m bes
+#$ -M i.donaldson@qmul.ac.uk
+#$ -cwd
+#$ -V    
+##$ -pe smp 4
+#$ -l h_rt=24:0:0
+##$ -l h_vmem=16G   
+#$ -N bismark
+
+#retrieve the variables for the job from the mandate file
+THIS_SAMPLE_REP=$(sed -n -e "$SGE_TASK_ID p" ${SAMPLE_NAMES})
+###next two variable are used to locate all read1 and read2 files
+SAMPLE_NAME=$(echo ${THIS_SAMPLE_REP} | cut -f 1 -d '-')
+SAMPLE_REP=$(echo ${THIS_SAMPLE_REP} | cut -f 2 -d '-')
+###next variable is used to create results directory and file names
+THIS_SAMPLE="${SAMPLE_NAME}-${SAMPLE_REP}"
+
+INPUT_FILE_1="${INPUT_DIR}/${SAMPLE_NAME}-*-${SAMPLE_REP}_S*_L001_R1_001_val_1.fq"
+INPUT_FILE_2="${INPUT_DIR}/${SAMPLE_NAME}-*-${SAMPLE_REP}_S*_L001_R2_001_val_2.fq"
+
+
+for THIS_FILE in ${INPUT_FILE_1} ${INPUT_FILE_2}; do
+    #echo ${THIS_FILE};
+    if [ ! -e ${THIS_FILE} ]; then
+        echo "${THIS_FILE} not found. quitting";
+        #exit;
+    fi
+done
+
+###now make list of files comma-delimited
+TMP1=$(echo ${INPUT_FILE_1} | sed 's/ /,/g')
+TMP2=$(echo ${INPUT_FILE_2} | sed 's/ /,/g')
+INPUT_FILE_1=${TMP1}
+INPUT_FILE_2=${TMP2}
+
+### notes on file naming conventions
+#the example fastq input file names for this project are of the form
+#10B-Chr11a-rep1_S45_L001_R1_001.fq
+#where 10B is the biological sample name, Chr11a is the chromosome target
+#that is being sequenced in this library prep and rep1 is the replicate name for that combination of 
+#bio sample and chr target.
+#
+#there may be multiple targets per sample and I want to combine all targets into a single
+#analysis for each sample-replicate pair
+#after trimming with trim galore, these fastq file names become
+#10B-Chr11a-rep1_S45_L001_R1_001_val_1.fq
+#these files (6 targets * two reads each = 12 files) become the input files for bismark
+#10B-Chr11a-rep1_S45_L001_R1_001_val_1.fq
+#the corresponding output files are combined into a single bam file named after the sample-replicate
+#using samtools cat
+#10B-rep1.bam
+#and if deduplication is carried out the resulting file will be called
+#10B-rep1.deduplicated.bam
+#
+#in the code below
+#THIS_SAMPLE refers to the string 10B-rep1
+#BISMARK_OUT_FILE refers to 10B-rep1.bam or 10B-rep1.deduplicated.bam
+#depending on whether depluication was performed
+
+#make a note of the output file name
+BISMARK_OUT_FILE="${OUTPUT_DIR}/${THIS_SAMPLE}/${THIS_SAMPLE}.bam"
+#example - 10B-rep1.bam
+BISMARK_DEDUP_OUT_FILE="${OUTPUT_DIR}/${THIS_SAMPLE}/${THIS_SAMPLE}.deduplicated.bam"
+#example - 10B-rep1.deduplicated.bam
+
+
+NUM_JOBS=$(wc -l < ${SAMPLE_NAMES})
+
+
+#all output files will be written to a single sub-directory for each sample
+if [ ! -e ${OUTPUT_DIR}/${THIS_SAMPLE} ]; then mkdir -p ${OUTPUT_DIR}/${THIS_SAMPLE}; fi
+
+#log what will be done for this specfic task
+echo -e "starting app for ${THIS_SAMPLE}. \
+Number of jobs is ${NUM_JOBS} and task id is ${SGE_TASK_ID}" | tee -a ${OUTPUT_DIR}/log
+
+
+#bismark requires bowtie or bowtie2 depending on which was used to prepare the bisuphite converted genome and its index 
+module load bowtie2/2.1.0
+module load samtools
+#uncomment if a bismark module is available
+#module load bismark
+
+#do it
+
+START=$(date +%s.%N)
+
+${BISMARK_PATH}/bismark \
+                        --bowtie2 \
+                        --output_dir ${OUTPUT_DIR}/${THIS_SAMPLE} \
+                        --temp_dir ${OUTPUT_DIR}/${THIS_SAMPLE} \
+                        ${GENOME_DIR} \
+                        -1 ${INPUT_FILE_1} \
+                        -2 ${INPUT_FILE_2}
+
+BISMARK_EXIT_CODE=$?
+END=$(date +%s.%N)
+TOTAL_TIME=$(echo "$END - $START" | bc)
+
+#log what happened
+echo "bismark exited with code ${BISMARK_EXIT_CODE} for ${THIS_SAMPLE} after ${TOTAL_TIME} seconds" | tee -a ${OUTPUT_DIR}/log
+#abort rest of workflow if there were problems
+if [ ${BISMARK_EXIT_CODE} -ne 0 ]; then
+     echo "bismark failed for ${THIS_SAMPLE}. quitting" | tee -a ${OUTPUT_DIR}/log
+     exit
+fi
+
+
+#consolidate multiple bam files into one for this sample
+BAM_FILES=$(ls ${OUTPUT_DIR}/${THIS_SAMPLE}/*.bam)
+echo "attempting to combine multiple bam files: ${BAM_FILES} found in ${OUTPUT_DIR}/${THIS_SAMPLE} into ${BISMARK_OUT_FILE}" | tee -a ${OUTPUT_DIR}/log
+
+samtools cat -o ${BISMARK_OUT_FILE} ${BAM_FILES}
+
+SAMCAT_EXIT_CODE=$?
+
+#log what happened
+echo "samtools cat exited with code ${SAMCAT_EXIT_CODE} for ${THIS_SAMPLE}" | tee -a ${OUTPUT_DIR}/log
+#abort rest of workflow if there were problems
+if [ ${SAMCAT_EXIT_CODE} -ne 0 ]; then
+     echo "samtools cat failed for ${THIS_SAMPLE}. quitting" | tee -a ${OUTPUT_DIR}/log
+     exit
+fi
+
+
+#do deduplication if requested
+if [[ ${BISMARK_EXIT_CODE} -eq 0 && ${DEDUP} -eq 1 ]]; then
+
+     START=$(date +%s.%N)
+
+     ${BISMARK_PATH}/deduplicate_bismark --paired \
+                                         --bam \
+                                        ${BISMARK_OUT_FILE}
+
+     DEDUP_EXIT_CODE=$?
+     END=$(date +%s.%N)
+     TOTAL_TIME=$(echo "$END - $START" | bc)
+
+     #log what happened
+     echo "deduplicate_bismark exited with code ${DEDUP_EXIT_CODE} for ${THIS_SAMPLE} after ${TOTAL_TIME} seconds" | tee -a ${OUTPUT_DIR}/log
+     #abort rest of workflow if there were problems
+     if [ ${DEDUP_EXIT_CODE} -ne 0 ]; then     
+          echo "deduplication failed for ${THIS_SAMPLE}. quitting" | tee -a ${OUTPUT_DIR}/log
+     exit
+fi
+     
+     #update definition of BISMARK_OUT_FILE for consistency with next step - see configurations at top of this file
+     BISMARK_OUT_FILE=${BISMARK_DEDUP_OUT_FILE}
+
+fi
+
+
+#finally do methylation extraction
+
+START=$(date +%s.%N)
+
+${BISMARK_PATH}/bismark_methylation_extractor \
+      --paired-end \
+      --bedgraph \
+      --counts \
+      --no_overlap \
+      --buffer_size 10G \
+      --cytosine_report \
+      --genome_folder ${GENOME_DIR} \
+      --output ${OUTPUT_DIR}/${THIS_SAMPLE} \
+      ${BISMARK_OUT_FILE}
+
+BME_EXIT_CODE=$?
+END=$(date +%s.%N)
+TOTAL_TIME=$(echo "$END - $START" | bc)
+
+#log what happened
+echo "bismark methylation extraction exited with code ${BME_EXIT_CODE} for ${THIS_SAMPLE} after ${TOTAL_TIME} seconds" | tee -a ${OUTPUT_DIR}/log                                                  
+#abort rest of workflow if there were problems
+if [ ${BME_EXIT_CODE} -ne 0 ]; then     
+     echo "methylation extraction failed for ${THIS_SAMPLE}. quitting" | tee -a ${OUTPUT_DIR}/log
+     exit
+fi
+
+
+
+
+
+exit
+
+####
+
+bismark installation
+
+===home 
+http://www.bioinformatics.babraham.ac.uk/projects/bismark/
+
+===download
+http://www.bioinformatics.babraham.ac.uk/projects/download.html#bismark
+http://www.bioinformatics.babraham.ac.uk/projects/bismark/bismark_v0.16.3.tar.gz
+
+===install
+tar -xzvf bismark_v0.16.3.tar.gz
+cd
+./data/home/wgw057/tools/bismark/bismark_v0.16.3/bismark --help
+
+===test data set
+http://www.bioinformatics.babraham.ac.uk/projects/bismark/test_data.fastq
+
+===user manual and getting help after installation
+http://www.bioinformatics.babraham.ac.uk/projects/bismark/Bismark_User_Guide.pdf
+${BISMARK_PATH}/bismark --help
+
+===code
+https://github.com/FelixKrueger/Bismark
+
+
+===bismark_methylation_extractor
+for help see
+bismark_methylation_extractor --help
+and
+the Bismark_User_Guide.pdf section on the methylation extractor
+and Appendix 3 
+
+--paired-end   paired-end
+--bedgraph     produce a bedGraph file representation of the results
+               By default, only cytosines in CpG context will be sorted. 
+               The option--CX_context may  be  used  to  report  all  
+               cytosines  irrespective  of  sequence  context
+
+--counts       generate  a  genome-wide  cytosine  report which  reports  the  number  
+               on  every single CpG (optionally every single cytosine) in the genome, 
+               irrespective of whether it was covered by any reads  or  not.
+--cytosine_report
+               After the conversion to bedGraph has completed, the option --cytosine_report 
+               produces a genome-wide methylation report for all cytosines in the genome. 
+               By default, the output uses 1-based chromosome coordinates (see full
+               description in Bismark manual)
+ 
+--no_overlap   specifying  this  option  will  extract  the  methylation  calls  of 
+               overlapping parts in the middle of paired-end reads only once (using the 
+               calls from the first read which is presumably the one with a lowest error 
+               rate)
+
+--output       output directory (default is current directory)
+
+
+
+
+
+not used yet
+
+--comprehensive  Specifying this option will merge all four possible strand
+                 -specific methylation info into context-dependent output files. The default contexts are:
+                 (i)   CpG context
+                 (ii)  CHG context
+                 (iii) CHH context
+                 (Depending  on  the  C  content  of  the  Bismark  result  file,  the  output file  
+                 size  might reach 10-30GB!).
+
+--report         Prints out a short methylation summary and the parameters used to run 
+                 this script. Default: ON.
+
+--mbias_only     The methylation extractor will read the entire  file but only output the 
+                 M-bias table and plots as well as a report (optional) and then quit. 
+                 Default: OFF.
